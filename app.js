@@ -3,45 +3,34 @@ import express from "express";
 import router from "./routes/index.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import cron from "node-cron";
-import { PrismaClient } from "@prisma/client";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  process.env.CLIENT_URL, // 예: https://너의프론트.vercel.app
+  "http://localhost:3000", // 로컬 개발용
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: "https://study-forest.netlify.app",
+    origin: (origin, callback) => {
+      // origin이 없는 경우(예: curl, 서버-서버 요청) 허용
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"],
   })
 );
 
+app.options("*", cors()); // preflight 대응(가끔 필요)
+
 app.use(cookieParser());
 app.use(express.json());
 app.use("/api", router);
 
-// const prisma = new PrismaClient();
-
-// /** 1분 마다 한 시간지난 인증키 지워버리는 코드 */
-// cron.schedule("* * * * *", async () => {
-//   const now = new Date();
-//   const oneMius = new Date(now.getTime() - 60 * 60 * 1000);
-//   console.log("delete Date :", oneMius);
-//   try {
-//     await prisma.authKey.deleteMany({
-//       where: {
-//         createdAt: {
-//           lt: oneMius,
-//         },
-//       },
-//     });
-//   } catch (err) {
-//     console.error("스케쥴 err", err);
-//   }
-// });
-
 const port = process.env.PORT || 8000;
-
 app.listen(port, () => console.log(`${port}서버시작`));
